@@ -32,33 +32,52 @@
     </div>
 
     <script>
-        const competitionApiUrl = 'https://www.worldcubeassociation.org/api/v0/competitions';
-        const resultsApiUrl = 'https://www.worldcubeassociation.org/api/v0/results';
-        
         async function fetchCompetitions() {
             const container = document.getElementById('competitions-container');
             const personId = '2021MARC03';
-
+            let allResults = [];
+            let continueFetching = true;
+            let page = 1;
+            
             try {
-                // Passo 1: Trova le competizioni a cui ha partecipato la persona
-                const competitionsResponse = await fetch(`${competitionApiUrl}?competitor_id=${personId}&per_page=1000`);
-                if (!competitionsResponse.ok) {
-                     throw new Error(`HTTP Error! Status: ${competitionsResponse.status}`);
+                // Paginazione: scarica i risultati pagina per pagina
+                while (continueFetching) {
+                    const response = await fetch(`https://www.worldcubeassociation.org/api/v0/results?per_page=1000&page=${page}`);
+                    if (!response.ok) {
+                        if (response.status === 404) {
+                            console.log('Tutte le pagine scaricate.');
+                            continueFetching = false;
+                        } else {
+                            throw new Error(`HTTP Error! Status: ${response.status}`);
+                        }
+                    } else {
+                        const newResults = await response.json();
+                        if (newResults.length === 0) {
+                            continueFetching = false;
+                        } else {
+                            allResults = allResults.concat(newResults);
+                            page++;
+                        }
+                    }
                 }
-                const participatedCompetitions = await competitionsResponse.json();
+                
+                // Filtra i risultati per trovare solo quelli della persona
+                const personResults = allResults.filter(result => result.person_id === personId);
 
-                if (participatedCompetitions.length === 0) {
-                    container.innerHTML = `<p>Nessuna competizione trovata per ${personId}.</p>`;
+                if (personResults.length === 0) {
+                    container.innerHTML = `<p>Nessun risultato trovato per questo ID WCA.</p>`;
                     return;
                 }
 
-                // Passo 2: Estrai i nomi delle competizioni e rimuovi i duplicati
+                // Estrai i nomi delle competizioni e rimuovi i duplicati
                 const competitionNames = new Set();
-                participatedCompetitions.forEach(comp => {
-                    competitionNames.add(comp.name);
+                personResults.forEach(result => {
+                    if (result.competition_name) {
+                        competitionNames.add(result.competition_name);
+                    }
                 });
 
-                // Passo 3: Crea una lista HTML dei nomi delle competizioni
+                // Crea una lista HTML dei nomi delle competizioni
                 let html = '<ul>';
                 competitionNames.forEach(name => {
                     html += `<li>${name}</li>`;
