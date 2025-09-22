@@ -1,63 +1,233 @@
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const container = document.getElementById('results-container');
-        container.innerHTML = `<p>Caricamento dati...</p>`;
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medagliere WCA</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .controls label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .controls select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <h1>Medagliere WCA</h1>
+    
+    <div class="controls">
+        <div>
+            <label for="event-select">Evento:</label>
+            <select id="event-select"></select>
+        </div>
+        <div>
+            <label for="region-select">Regione:</label>
+            <select id="region-select"></select>
+        </div>
+        <div>
+            <label for="year-select">Anno:</label>
+            <select id="year-select"></select>
+        </div>
+        <div>
+            <label for="order-by">Ordina per:</label>
+            <select id="order-by">
+                <option value="golds">Ori</option>
+                <option value="total">Totale Medaglie</option>
+            </select>
+        </div>
+    </div>
 
-        // ID dell'evento, come da tua query. L'API usa stringhe diverse.
-        const eventId = '333'; 
+    <div id="results-container">
+        <p>Caricamento dati. Attendere, potrebbe volerci qualche minuto...</p>
+    </div>
 
-        // Endpoint per scaricare i risultati
-        const resultsUrl = 'https://www.worldcubeassociation.org/api/v0/results?sort=best&per_page=1000';
+    <script>
+        const competitionApiUrl = 'https://www.worldcubeassociation.org/api/v0/competitions';
+        const resultsApiUrl = 'https://www.worldcubeassociation.org/api/v0/results';
+        
+        let allResultsData = [];
+        let allCompetitionsData = [];
+        let competitionsMap = {};
 
-        fetch(resultsUrl)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Errore nel caricamento dei dati: ' + response.statusText);
-                }
-                return response.json();
-            })
-            .then(allResults => {
-                // Aggrega le medaglie usando la logica della tua query SQL
-                const playerStats = {};
+        const eventIds = [
+            { id: 'all', name: 'Tutti' }, { id: '222', name: '2x2x2' }, { id: '333', name: '3x3x3' },
+            { id: '444', name: '4x4x4' }, { id: '555', name: '5x5x5' }, { id: '666', name: '6x6x6' },
+            { id: '777', name: '7x7x7' }, { id: '333oh', name: '3x3x3 con una mano' },
+            { id: 'pyram', name: 'Pyraminx' }, { id: 'minx', name: 'Megaminx' },
+            { id: 'skewb', name: 'Skewb' }, { id: 'sq1', name: 'Square-1' },
+            { id: 'clock', name: 'Clock' }, { id: '333fm', name: '3x3x3 Fewest Moves' },
+            { id: '333bf', name: '3x3x3 Blindfolded' }, { id: '444bf', name: '4x4x4 Blindfolded' },
+            { id: '555bf', name: '5x5x5 Blindfolded' }, { id: '333mbf', name: '3x3x3 Multi-Blind' }
+        ];
+        
+        const regions = [
+            { id: 'World', name: 'World' }, { id: 'Asia', name: 'Asia' }, { id: 'Africa', name: 'Africa' },
+            { id: 'Europe', name: 'Europe' }, { id: 'North America', name: 'North America' }, 
+            { id: 'Oceania', name: 'Oceania' }, { id: 'South America', name: 'South America' }
+        ];
 
-                allResults.forEach(result => {
-                    // Controlla l'evento, il round (finale), e la posizione
-                    if (result.event_id === eventId && result.round_type === 'f' && result.pos <= 3) {
-                        const personId = result.person_id;
-                        if (!playerStats[personId]) {
-                            playerStats[personId] = {
-                                name: result.person_name,
-                                golds: 0,
-                                silvers: 0,
-                                bronzes: 0,
-                                tot: 0
-                            };
-                        }
-                        
-                        if (result.pos === 1) playerStats[personId].golds++;
-                        if (result.pos === 2) playerStats[personId].silvers++;
-                        if (result.pos === 3) playerStats[personId].bronzes++;
-                        playerStats[personId].tot++;
-                    }
-                });
+        async function fetchData() {
+            try {
+                // Scarica tutti i risultati e le competizioni.
+                const resultsResponse = await fetch(`${resultsApiUrl}?per_page=100000`);
+                allResultsData = await resultsResponse.json();
 
-                // Converti l'oggetto in un array per ordinarlo
-                const sortedPlayers = Object.values(playerStats).sort((a, b) => {
-                    // Ordina per numero totale di medaglie (come nella tua query)
-                    return b.tot - a.tot;
-                });
+                const competitionsResponse = await fetch(`${competitionApiUrl}?per_page=10000`);
+                allCompetitionsData = await competitionsResponse.json();
+                
+                // Mappa le competizioni per un accesso più veloce
+                competitionsMap = allCompetitionsData.reduce((map, comp) => {
+                    map[comp.id] = comp;
+                    return map;
+                }, {});
 
-                // Crea la tabella dei risultati
-                let html = '<h2>Classifica Medaglie 3x3x3 (top 1000)</h2><table><thead><tr><th>Nome</th><th>Ori</th><th>Argenti</th><th>Bronzi</th><th>Tot</th></tr></thead><tbody>';
-                sortedPlayers.slice(0, 10).forEach(player => { // Mostra solo i primi 10
-                    html += `<tr><td>${player.name}</td><td>${player.golds}</td><td>${player.silvers}</td><td>${player.bronzes}</td><td>${player.tot}</td></tr>`;
-                });
-                html += '</tbody></table>';
-                container.innerHTML = html;
-            })
-            .catch(error => {
-                container.innerHTML = `<p style="color: red;">Errore nel caricamento dei dati: ${error.message}</p>`;
+                // Inizializza i menu a tendina
+                initializeFilters();
+                
+                // Aggiorna la tabella con i dati iniziali
+                updateTable();
+
+            } catch (error) {
+                document.getElementById('results-container').innerHTML = `<p style="color: red;">Errore nel caricamento dei dati: ${error.message}</p>`;
                 console.error('Fetch error:', error);
+            }
+        }
+
+        function initializeFilters() {
+            const eventSelect = document.getElementById('event-select');
+            const regionSelect = document.getElementById('region-select');
+            const yearSelect = document.getElementById('year-select');
+
+            // Popola gli eventi
+            eventIds.forEach(event => {
+                const option = new Option(event.name, event.id);
+                eventSelect.add(option);
             });
-    });
-</script>
+
+            // Popola le regioni e gli stati
+            regions.forEach(region => {
+                const option = new Option(region.name, region.id);
+                regionSelect.add(option);
+            });
+            const allCountries = [...new Set(allCompetitionsData.map(comp => comp.country_iso2))].sort();
+            allCountries.forEach(country => {
+                const option = new Option(country, country);
+                regionSelect.add(option);
+            });
+
+            // Popola gli anni
+            const allYears = ['Tutti', ...new Set(allCompetitionsData.map(comp => new Date(comp.start_date).getFullYear()))].sort();
+            allYears.forEach(year => {
+                const option = new Option(year, year);
+                yearSelect.add(option);
+            });
+
+            // Aggiungi gli event listener ai menu
+            eventSelect.addEventListener('change', updateTable);
+            regionSelect.addEventListener('change', updateTable);
+            yearSelect.addEventListener('change', updateTable);
+            document.getElementById('order-by').addEventListener('change', updateTable);
+        }
+
+        function updateTable() {
+            const eventFilter = document.getElementById('event-select').value;
+            const regionFilter = document.getElementById('region-select').value;
+            const yearFilter = document.getElementById('year-select').value;
+            const orderBy = document.getElementById('order-by').value;
+            const container = document.getElementById('results-container');
+            
+            let filteredResults = allResultsData;
+
+            // Filtra i dati in base alle selezioni (logica simile alla tua query SQL)
+            filteredResults = filteredResults.filter(result => {
+                const competition = competitionsMap[result.competition_id];
+                if (!competition) return false;
+
+                const competitionYear = new Date(competition.start_date).getFullYear().toString();
+                const isCorrectEvent = (eventFilter === 'all' || result.event_id === eventFilter);
+                const isCorrectRegion = (
+                    regionFilter === 'World' || 
+                    competition.country_iso2 === regionFilter ||
+                    (regions.find(r => r.id === regionFilter) && competition.continent_id === regionFilter)
+                );
+                const isCorrectYear = (yearFilter === 'Tutti' || competitionYear === yearFilter);
+
+                return isCorrectEvent && isCorrectRegion && isCorrectYear && result.best > 0 && (result.pos === 1 || result.pos === 2 || result.pos === 3);
+            });
+            
+            // Aggrega le medaglie
+            const playerStats = {};
+            filteredResults.forEach(result => {
+                const personId = result.person_id;
+                if (!playerStats[personId]) {
+                    playerStats[personId] = {
+                        name: result.person_name,
+                        golds: 0,
+                        silvers: 0,
+                        bronzes: 0,
+                        total: 0
+                    };
+                }
+                if (result.pos === 1) playerStats[personId].golds++;
+                if (result.pos === 2) playerStats[personId].silvers++;
+                if (result.pos === 3) playerStats[personId].bronzes++;
+                playerStats[personId].total++;
+            });
+
+            // Ordina i risultati
+            const sortedPlayers = Object.values(playerStats).sort((a, b) => {
+                if (orderBy === 'golds') {
+                    if (b.golds !== a.golds) return b.golds - a.golds;
+                    return b.total - a.total;
+                } else {
+                    if (b.total !== a.total) return b.total - a.total;
+                    return b.golds - a.golds;
+                }
+            });
+
+            // Crea la tabella HTML
+            let html = '<table><thead><tr><th>Nome</th><th>Ori</th><th>Argenti</th><th>Bronzi</th><th>Totale</th></tr></thead><tbody>';
+            sortedPlayers.forEach(player => {
+                html += `<tr><td>${player.name}</td><td>${player.golds}</td><td>${player.silvers}</td><td>${player.bronzes}</td><td>${player.total}</td></tr>`;
+            });
+            html += '</tbody></table>';
+
+            container.innerHTML = html;
+        }
+
+        // Avvia il processo di fetch dei dati
+        fetchData();
+    </script>
+</body>
+</html>
