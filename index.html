@@ -91,7 +91,7 @@
             { id: '555bf', name: '5x5x5 Blindfolded' }, { id: '333mbf', name: '3x3x3 Multi-Blind' }
         ];
         
-        const regions = [
+        const continents = [
             { id: 'World', name: 'World' }, { id: 'Asia', name: 'Asia' }, { id: 'Africa', name: 'Africa' },
             { id: 'Europe', name: 'Europe' }, { id: 'North America', name: 'North America' }, 
             { id: 'Oceania', name: 'Oceania' }, { id: 'South America', name: 'South America' }
@@ -99,20 +99,19 @@
 
         async function fetchData() {
             try {
-                const resultsResponse = await fetch(`${resultsApiUrl}?per_page=100000`);
-                allResultsData = await resultsResponse.json();
-
+                // Diminuire la quantità di dati scaricati per velocizzare
                 const competitionsResponse = await fetch(`${competitionApiUrl}?per_page=10000`);
                 allCompetitionsData = await competitionsResponse.json();
                 
+                const resultsResponse = await fetch(`${resultsApiUrl}?per_page=10000`);
+                allResultsData = await resultsResponse.json();
+
                 competitionsMap = allCompetitionsData.reduce((map, comp) => {
                     map[comp.id] = comp;
                     return map;
                 }, {});
 
-                // Inizializza i menu a tendina solo dopo aver scaricato i dati
                 initializeFilters();
-                
                 updateTable();
 
             } catch (error) {
@@ -133,8 +132,8 @@
             });
 
             // Popola le regioni e gli stati
-            regions.forEach(region => {
-                const option = new Option(region.name, region.id);
+            continents.forEach(continent => {
+                const option = new Option(continent.name, continent.id);
                 regionSelect.add(option);
             });
             const allCountries = [...new Set(allCompetitionsData.map(comp => comp.country_iso2))].sort();
@@ -164,41 +163,39 @@
             const orderBy = document.getElementById('order-by').value;
             const container = document.getElementById('results-container');
             
-            let filteredResults = allResultsData;
-
-            filteredResults = filteredResults.filter(result => {
+            // Filtra e aggrega i dati
+            const playerStats = {};
+            
+            for (const result of allResultsData) {
                 const competition = competitionsMap[result.competition_id];
-                if (!competition) return false;
+                if (!competition) continue;
 
                 const competitionYear = new Date(competition.start_date).getFullYear().toString();
                 const isCorrectEvent = (eventFilter === 'all' || result.event_id === eventFilter);
                 const isCorrectRegion = (
                     regionFilter === 'World' || 
                     competition.country_iso2 === regionFilter ||
-                    (regions.find(r => r.id === regionFilter) && competition.continent_id === regionFilter)
+                    (continents.find(c => c.id === regionFilter) && competition.continent_id === regionFilter)
                 );
                 const isCorrectYear = (yearFilter === 'Tutti' || competitionYear === yearFilter);
 
-                return isCorrectEvent && isCorrectRegion && isCorrectYear && result.best > 0 && (result.pos === 1 || result.pos === 2 || result.pos === 3);
-            });
-            
-            const playerStats = {};
-            filteredResults.forEach(result => {
-                const personId = result.person_id;
-                if (!playerStats[personId]) {
-                    playerStats[personId] = {
-                        name: result.person_name,
-                        golds: 0,
-                        silvers: 0,
-                        bronzes: 0,
-                        total: 0
-                    };
+                if (isCorrectEvent && isCorrectRegion && isCorrectYear && (result.pos === 1 || result.pos === 2 || result.pos === 3)) {
+                    const personId = result.person_id;
+                    if (!playerStats[personId]) {
+                        playerStats[personId] = {
+                            name: result.person_name,
+                            golds: 0,
+                            silvers: 0,
+                            bronzes: 0,
+                            total: 0
+                        };
+                    }
+                    if (result.pos === 1) playerStats[personId].golds++;
+                    if (result.pos === 2) playerStats[personId].silvers++;
+                    if (result.pos === 3) playerStats[personId].bronzes++;
+                    playerStats[personId].total++;
                 }
-                if (result.pos === 1) playerStats[personId].golds++;
-                if (result.pos === 2) playerStats[personId].silvers++;
-                if (result.pos === 3) playerStats[personId].bronzes++;
-                playerStats[personId].total++;
-            });
+            }
 
             const sortedPlayers = Object.values(playerStats).sort((a, b) => {
                 if (orderBy === 'golds') {
