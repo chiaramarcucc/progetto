@@ -75,7 +75,7 @@
                 // Passo 3: Calcolo delle medaglie (come nella tua query SQL)
                 const playerStats = {};
                 allResults.forEach(result => {
-                    if (result.round_type === 'c' || result.round_type === 'f') {
+                    if (result.round_type_id === 'c' || result.round_type_id === 'f') {
                         const personId = result.person_id;
                         if (!playerStats[personId]) {
                             playerStats[personId] = {
