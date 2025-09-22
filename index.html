@@ -1,78 +1,4 @@
-<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Medagliere WCA</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            line-height: 1.6;
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .controls {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        .controls label {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        .controls select {
-            width: 100%;
-            padding: 8px;
-            border-radius: 4px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-        th {
-            background-color: #f2f2f2;
-        }
-    </style>
-</head>
-<body>
-    <h1>Medagliere WCA</h1>
-    
-    <div class="controls">
-        <div>
-            <label for="event-select">Evento:</label>
-            <select id="event-select"></select>
-        </div>
-        <div>
-            <label for="region-select">Regione:</label>
-            <select id="region-select"></select>
-        </div>
-        <div>
-            <label for="year-select">Anno:</label>
-            <select id="year-select"></select>
-        </div>
-        <div>
-            <label for="order-by">Ordina per:</label>
-            <select id="order-by">
-                <option value="golds">Ori</option>
-                <option value="total">Totale Medaglie</option>
-            </select>
-        </div>
-    </div>
-
-    <div id="results-container">
-        <p>Caricamento dati. Attendere, potrebbe volerci qualche minuto...</p>
-    </div>
-
-    <script>
+<script>
         const competitionApiUrl = 'https://www.worldcubeassociation.org/api/v0/competitions';
         const resultsApiUrl = 'https://www.worldcubeassociation.org/api/v0/results';
         
@@ -99,11 +25,13 @@
 
         async function fetchData() {
             try {
-                // Diminuire la quantità di dati scaricati per velocizzare
+                // Aggiungiamo il controllo della risposta
                 const competitionsResponse = await fetch(`${competitionApiUrl}?per_page=10000`);
+                if (!competitionsResponse.ok) throw new Error(`HTTP Error! Status: ${competitionsResponse.status}`);
                 allCompetitionsData = await competitionsResponse.json();
                 
                 const resultsResponse = await fetch(`${resultsApiUrl}?per_page=10000`);
+                if (!resultsResponse.ok) throw new Error(`HTTP Error! Status: ${resultsResponse.status}`);
                 allResultsData = await resultsResponse.json();
 
                 competitionsMap = allCompetitionsData.reduce((map, comp) => {
@@ -163,7 +91,6 @@
             const orderBy = document.getElementById('order-by').value;
             const container = document.getElementById('results-container');
             
-            // Filtra e aggrega i dati
             const playerStats = {};
             
             for (const result of allResultsData) {
@@ -218,5 +145,3 @@
 
         fetchData();
     </script>
-</body>
-</html>
