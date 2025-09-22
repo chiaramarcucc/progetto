@@ -1,67 +1,63 @@
-<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WCA API Site</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            line-height: 1.6;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            text-align: center;
-        }
-        .result-card {
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 20px auto;
-            background-color: #f9f9f9;
-            text-align: left;
-        }
-    </style>
-</head>
-<body>
-    <h1>Risultati WCA</h1>
-    <div id="results-container">
-        <p>Caricamento dati...</p>
-    </div>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const container = document.getElementById('results-container');
+        container.innerHTML = `<p>Caricamento dati...</p>`;
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const container = document.getElementById('results-container');
-            const competitionId = 'SardiniaOpen2025'; // Esempio: cambia con l'ID della competizione che ti interessa
+        // ID dell'evento, come da tua query. L'API usa stringhe diverse.
+        const eventId = '333'; 
 
-            fetch(`https://www.worldcubeassociation.org/api/v0/competitions/${competitionId}`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Errore di rete: ' + response.statusText);
+        // Endpoint per scaricare i risultati
+        const resultsUrl = 'https://www.worldcubeassociation.org/api/v0/results?sort=best&per_page=1000';
+
+        fetch(resultsUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Errore nel caricamento dei dati: ' + response.statusText);
+                }
+                return response.json();
+            })
+            .then(allResults => {
+                // Aggrega le medaglie usando la logica della tua query SQL
+                const playerStats = {};
+
+                allResults.forEach(result => {
+                    // Controlla l'evento, il round (finale), e la posizione
+                    if (result.event_id === eventId && result.round_type === 'f' && result.pos <= 3) {
+                        const personId = result.person_id;
+                        if (!playerStats[personId]) {
+                            playerStats[personId] = {
+                                name: result.person_name,
+                                golds: 0,
+                                silvers: 0,
+                                bronzes: 0,
+                                tot: 0
+                            };
+                        }
+                        
+                        if (result.pos === 1) playerStats[personId].golds++;
+                        if (result.pos === 2) playerStats[personId].silvers++;
+                        if (result.pos === 3) playerStats[personId].bronzes++;
+                        playerStats[personId].tot++;
                     }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log(data);
-                    
-                    const card = document.createElement('div');
-                    card.className = 'result-card';
-                    card.innerHTML = `
-                        <h2>${data.name}</h2>
-                        <p><strong>Città:</strong> ${data.city_name}</p>
-                        <p><strong>Nazione:</strong> ${data.country_iso2}</p>
-                        <p><strong>Data:</strong> ${data.start_date.split('T')[0]} - ${data.end_date.split('T')[0]}</p>
-                        <p><strong>Numero di atleti:</strong> ${data.competitor_count}</p>
-                    `;
-                    
-                    container.innerHTML = '';
-                    container.appendChild(card);
-                })
-                .catch(error => {
-                    container.innerHTML = `<p style="color: red;">Errore nel caricamento dei dati: ${error.message}</p>`;
-                    console.error('Fetch error:', error);
                 });
-        });
-    </script>
-</body>
-</html>
+
+                // Converti l'oggetto in un array per ordinarlo
+                const sortedPlayers = Object.values(playerStats).sort((a, b) => {
+                    // Ordina per numero totale di medaglie (come nella tua query)
+                    return b.tot - a.tot;
+                });
+
+                // Crea la tabella dei risultati
+                let html = '<h2>Classifica Medaglie 3x3x3 (top 1000)</h2><table><thead><tr><th>Nome</th><th>Ori</th><th>Argenti</th><th>Bronzi</th><th>Tot</th></tr></thead><tbody>';
+                sortedPlayers.slice(0, 10).forEach(player => { // Mostra solo i primi 10
+                    html += `<tr><td>${player.name}</td><td>${player.golds}</td><td>${player.silvers}</td><td>${player.bronzes}</td><td>${player.tot}</td></tr>`;
+                });
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            })
+            .catch(error => {
+                container.innerHTML = `<p style="color: red;">Errore nel caricamento dei dati: ${error.message}</p>`;
+                console.error('Fetch error:', error);
+            });
+    });
+</script>
