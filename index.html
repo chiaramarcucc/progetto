@@ -35,46 +35,24 @@
         async function fetchCompetitions() {
             const container = document.getElementById('competitions-container');
             const personId = '2021MARC03';
-            let allResults = [];
-            let continueFetching = true;
-            let page = 1;
-            
-            try {
-                // Paginazione: scarica i risultati pagina per pagina
-                while (continueFetching) {
-                    const response = await fetch(`https://www.worldcubeassociation.org/api/v0/results?per_page=1000&page=${page}`);
-                    if (!response.ok) {
-                        if (response.status === 404) {
-                            console.log('Tutte le pagine scaricate.');
-                            continueFetching = false;
-                        } else {
-                            throw new Error(`HTTP Error! Status: ${response.status}`);
-                        }
-                    } else {
-                        const newResults = await response.json();
-                        if (newResults.length === 0) {
-                            continueFetching = false;
-                        } else {
-                            allResults = allResults.concat(newResults);
-                            page++;
-                        }
-                    }
-                }
-                
-                // Filtra i risultati per trovare solo quelli della persona
-                const personResults = allResults.filter(result => result.person_id === personId);
 
-                if (personResults.length === 0) {
-                    container.innerHTML = `<p>Nessun risultato trovato per questo ID WCA.</p>`;
+            try {
+                // Questo endpoint supporta il filtraggio per ID del concorrente
+                const response = await fetch(`https://www.worldcubeassociation.org/api/v0/competitions?competitor_id=${personId}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP Error! Status: ${response.status}`);
+                }
+                const participatedCompetitions = await response.json();
+
+                if (participatedCompetitions.length === 0) {
+                    container.innerHTML = `<p>Nessuna competizione trovata per questo ID WCA.</p>`;
                     return;
                 }
 
                 // Estrai i nomi delle competizioni e rimuovi i duplicati
                 const competitionNames = new Set();
-                personResults.forEach(result => {
-                    if (result.competition_name) {
-                        competitionNames.add(result.competition_name);
-                    }
+                participatedCompetitions.forEach(comp => {
+                    competitionNames.add(comp.name);
                 });
 
                 // Crea una lista HTML dei nomi delle competizioni
