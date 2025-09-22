@@ -99,23 +99,20 @@
 
         async function fetchData() {
             try {
-                // Scarica tutti i risultati e le competizioni.
                 const resultsResponse = await fetch(`${resultsApiUrl}?per_page=100000`);
                 allResultsData = await resultsResponse.json();
 
                 const competitionsResponse = await fetch(`${competitionApiUrl}?per_page=10000`);
                 allCompetitionsData = await competitionsResponse.json();
                 
-                // Mappa le competizioni per un accesso più veloce
                 competitionsMap = allCompetitionsData.reduce((map, comp) => {
                     map[comp.id] = comp;
                     return map;
                 }, {});
 
-                // Inizializza i menu a tendina
+                // Inizializza i menu a tendina solo dopo aver scaricato i dati
                 initializeFilters();
                 
-                // Aggiorna la tabella con i dati iniziali
                 updateTable();
 
             } catch (error) {
@@ -169,7 +166,6 @@
             
             let filteredResults = allResultsData;
 
-            // Filtra i dati in base alle selezioni (logica simile alla tua query SQL)
             filteredResults = filteredResults.filter(result => {
                 const competition = competitionsMap[result.competition_id];
                 if (!competition) return false;
@@ -186,7 +182,6 @@
                 return isCorrectEvent && isCorrectRegion && isCorrectYear && result.best > 0 && (result.pos === 1 || result.pos === 2 || result.pos === 3);
             });
             
-            // Aggrega le medaglie
             const playerStats = {};
             filteredResults.forEach(result => {
                 const personId = result.person_id;
@@ -205,7 +200,6 @@
                 playerStats[personId].total++;
             });
 
-            // Ordina i risultati
             const sortedPlayers = Object.values(playerStats).sort((a, b) => {
                 if (orderBy === 'golds') {
                     if (b.golds !== a.golds) return b.golds - a.golds;
@@ -216,17 +210,15 @@
                 }
             });
 
-            // Crea la tabella HTML
-            let html = '<table><thead><tr><th>Nome</th><th>Ori</th><th>Argenti</th><th>Bronzi</th><th>Totale</th></tr></thead><tbody>';
+            let html = `<table><thead><tr><th>Nome</th><th>Ori</th><th>Argenti</th><th>Bronzi</th><th>Totale</th></tr></thead><tbody>`;
             sortedPlayers.forEach(player => {
                 html += `<tr><td>${player.name}</td><td>${player.golds}</td><td>${player.silvers}</td><td>${player.bronzes}</td><td>${player.total}</td></tr>`;
             });
-            html += '</tbody></table>';
+            html += `</tbody></table>`;
 
             container.innerHTML = html;
         }
 
-        // Avvia il processo di fetch dei dati
         fetchData();
     </script>
 </body>
