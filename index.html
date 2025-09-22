@@ -45,15 +45,16 @@
             const countryId = 'IT';
             
             try {
-                // Passo 1: Trova le competizioni in Italia
-                const competitionsResponse = await fetch(`${competitionApiUrl}?country_id=${countryId}&per_page=1000`);
+                // Passo 1: Scarica un set di competizioni più grande e filtra
+                const competitionsResponse = await fetch(`${competitionApiUrl}?per_page=10000`);
                 if (!competitionsResponse.ok) {
                     throw new Error(`HTTP Error! Status: ${competitionsResponse.status}`);
                 }
-                const italianCompetitions = await competitionsResponse.json();
+                const allCompetitions = await competitionsResponse.json();
+                const italianCompetitions = allCompetitions.filter(comp => comp.country_iso2 === countryId);
 
                 if (italianCompetitions.length === 0) {
-                    container.innerHTML = `<p style="color: red;">Nessuna competizione trovata per l'Italia.</p>`;
+                    container.innerHTML = `<p style="color: red;">Nessuna competizione italiana trovata nel set di dati.</p>`;
                     return;
                 }
 
@@ -72,10 +73,10 @@
                     return;
                 }
 
-                // Passo 3: Calcolo delle medaglie (come nella tua query SQL)
+                // Passo 3: Calcolo delle medaglie
                 const playerStats = {};
                 allResults.forEach(result => {
-                    if (result.round_type_id === 'c' || result.round_type_id === 'f') {
+                    if (result.pos <= 3 && result.person_name) {
                         const personId = result.person_id;
                         if (!playerStats[personId]) {
                             playerStats[personId] = {
