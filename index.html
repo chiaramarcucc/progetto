@@ -28,7 +28,7 @@
 <body>
     <h1>Gare di Chiara Marcucci</h1>
     <div id="competitions-container">
-        <p>Caricamento dati...</p>
+        <p>Caricamento dati. Questo potrebbe richiedere un po' di tempo...</p>
     </div>
 
     <script>
@@ -40,6 +40,7 @@
             let page = 1;
             
             try {
+                // Ciclo di paginazione per scaricare tutti i risultati, pagina per pagina.
                 while (continueFetching) {
                     const response = await fetch(`https://www.worldcubeassociation.org/api/v0/results?person_id=${personId}&per_page=1000&page=${page}`);
                     
@@ -57,6 +58,8 @@
                          } else {
                              allResults = allResults.concat(newResults);
                              page++;
+                             // Aggiorna l'utente per far capire che il sito sta lavorando
+                             container.innerHTML = `<p>Caricamento pagina ${page-1}...</p>`;
                          }
                     }
                 }
